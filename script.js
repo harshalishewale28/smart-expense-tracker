@@ -1,5 +1,8 @@
 
+"use strict";
+
 const STORAGE_KEY = "spendwise-transactions-v1";
+const BUDGET_KEY = "spendwise-monthly-budgets-v1";
 
 const $ = (id) => document.getElementById(id);
 
@@ -11,43 +14,87 @@ const dateInput = $("date");
 const descriptionInput = $("description");
 const searchInput = $("search");
 const filterInput = $("filter");
+const budgetForm = $("budgetForm");
+const budgetMonthInput = $("budgetMonth");
+const budgetAmountInput = $("budgetAmount");
+
+const VALID_TYPES = ["income", "expense"];
+const VALID_CATEGORIES = [
+  "Food", "Transport", "Shopping", "Bills", "Education",
+  "Health", "Salary", "Freelance", "Other"
+];
 
 let transactions = loadTransactions();
+let budgets = loadBudgets();
 let editingId = null;
 
-function today() {
-  const now = new Date();
-  const localDate = new Date(
-    now.getTime() - now.getTimezoneOffset() * 60000
+function localDateString(date = new Date()) {
+  const local = new Date(
+    date.getTime() - date.getTimezoneOffset() * 60000
   );
-  return localDate.toISOString().slice(0, 10);
+  return local.toISOString().slice(0, 10);
+}
+
+function currentMonth() {
+  return localDateString().slice(0, 7);
 }
 
 function createId() {
-  return crypto.randomUUID
-    ? crypto.randomUUID()
+  return globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function loadTransactions() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const data = raw ? JSON.parse(raw) : [];
 
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(data)) return [];
 
-    return parsed.filter((item) =>
+    return data.filter((item) =>
       item &&
       typeof item.id === "string" &&
-      ["income", "expense"].includes(item.type) &&
+      VALID_TYPES.includes(item.type) &&
       Number.isFinite(item.amount) &&
       item.amount > 0 &&
+      item.amount <= 1000000000 &&
       typeof item.description === "string" &&
-      typeof item.category === "string" &&
-      typeof item.date === "string"
+      item.description.trim().length > 0 &&
+      VALID_CATEGORIES.includes(item.category) &&
+      typeof item.date === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(item.date)
     );
   } catch {
     return [];
+  }
+}
+
+function loadBudgets() {
+  try {
+    const raw = localStorage.getItem(BUDGET_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+
+    if (!data || Array.isArray(data) || typeof data !== "object") {
+      return {};
+    }
+
+    const clean = {};
+
+    for (const [month, amount] of Object.entries(data)) {
+      if (
+        /^\d{4}-(0[1-9]|1[0-2])$/.test(month) &&
+        Number.isFinite(amount) &&
+        amount > 0 &&
+        amount <= 1000000000
+      ) {
+        clean[month] = amount;
+      }
+    }
+
+    return clean;
+  } catch {
+    return {};
   }
 }
 
@@ -57,24 +104,37 @@ function saveTransactions() {
     return true;
   } catch {
     $("formMessage").textContent =
-      "Could not save data. Check your browser storage.";
+      "Unable to save transactions. Check your browser storage.";
     return false;
   }
 }
 
-function money(amount) {
+function saveBudgets() {
+  try {
+    localStorage.setItem(BUDGET_KEY, JSON.stringify(budgets));
+    return true;
+  } catch {
+    $("budgetMessage").textContent =
+      "Unable to save the budget. Check your browser storage.";
+    return false;
+  }
+}
+
+function money(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: 2
-  }).format(amount);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
 }
 
 function formatDate(value) {
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
+  const parsed = new Date(`${value}T00:00:00`);
 
-  return date.toLocaleDateString("en-IN", {
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric"
@@ -93,6 +153,71 @@ function renderSummary() {
   $("balance").textContent = money(income - expenses);
   $("income").textContent = money(income);
   $("expenses").textContent = money(expenses);
+}
+
+function renderBudget() {
+  const month = budgetMonthInput.value || currentMonth();
+  const limit = budgets[month];
+
+  const spent = transactions
+    .filter((item) =>
+      item.type === "expense" && item.date.startsWith(month)
+    )
+    .reduce((sum, item) => sum + item.amount, 0);
+
+  const remaining = limit === undefined ? null : limit - spent;
+  const percentage = limit ? (spent / limit) * 100 : 0;
+
+  $("budgetSpent").textContent = money(spent);
+  $("budgetRemaining").textContent =
+    remaining === null ? "—" : money(remaining);
+
+  $("remainingLabel").textContent =
+    remaining !== null && remaining < 0
+      ? "Amount over budget"
+      : "Budget remaining";
+
+  $("budgetLimitLabel").textContent =
+    limit === undefined ? "Limit: not set" : `Limit: ${money(limit)}`;
+
+  const fill = $("budgetProgressFill");
+  const progress = $("budgetProgress");
+
+  fill.classList.remove("warning", "over-budget");
+
+  if (limit === undefined) {
+    $("budgetPercent").textContent = "Set a budget to get started";
+    $("budgetTip").textContent =
+      "Tip: Choose a month and enter a spending limit to start tracking.";
+    fill.style.width = "0%";
+    progress.setAttribute("aria-valuenow", "0");
+    progress.setAttribute("aria-valuetext", "No budget set");
+    return;
+  }
+
+  // Cap the visual bar at 100%, while showing the actual percentage.
+  fill.style.width = `${Math.min(percentage, 100)}%`;
+  progress.setAttribute("aria-valuenow", String(Math.min(percentage, 100)));
+  progress.setAttribute(
+    "aria-valuetext",
+    `${percentage.toFixed(1)} percent of budget used`
+  );
+
+  $("budgetPercent").textContent =
+    `${percentage.toFixed(1)}% of budget used`;
+
+  if (percentage >= 100) {
+    fill.classList.add("over-budget");
+    $("budgetTip").textContent =
+      `Budget exceeded by ${money(spent - limit)}. Review your expenses to get back on track.`;
+  } else if (percentage >= 80) {
+    fill.classList.add("warning");
+    $("budgetTip").textContent =
+      `You're getting close to your limit. ${money(remaining)} remaining this month.`;
+  } else {
+    $("budgetTip").textContent =
+      `Great progress! You have ${money(remaining)} left in your budget.`;
+  }
 }
 
 function makeButton(label, className, action, id) {
@@ -179,13 +304,14 @@ function renderCategories() {
 
   if (categories.length === 0) {
     const message = document.createElement("p");
-    message.className = "muted";
-    message.textContent = "Add an expense to see your spending breakdown.";
+    message.className = "muted small-text";
+    message.textContent =
+      "Add an expense to see your category-wise spending.";
     container.append(message);
     return;
   }
 
-  const largest = Math.max(...categories.map((entry) => entry[1]));
+  const largest = categories[0][1];
 
   categories.forEach(([category, total]) => {
     const item = document.createElement("div");
@@ -216,6 +342,7 @@ function renderCategories() {
 
 function render() {
   renderSummary();
+  renderBudget();
   renderTransactions();
   renderCategories();
 }
@@ -223,7 +350,8 @@ function render() {
 function resetForm() {
   editingId = null;
   form.reset();
-  dateInput.value = today();
+  dateInput.value = localDateString();
+
   $("formTitle").textContent = "Add a transaction";
   $("submitButton").textContent = "Save transaction";
   $("cancelEdit").hidden = true;
@@ -235,6 +363,7 @@ function startEdit(id) {
   if (!item) return;
 
   editingId = id;
+
   typeInput.value = item.type;
   amountInput.value = item.amount;
   categoryInput.value = item.category;
@@ -267,6 +396,7 @@ function deleteTransaction(id) {
   }
 
   if (editingId === id) resetForm();
+
   render();
 }
 
@@ -285,7 +415,9 @@ form.addEventListener("submit", (event) => {
     amount > 1000000000 ||
     !description ||
     !date ||
-    !["income", "expense"].includes(type)
+    !VALID_TYPES.includes(type) ||
+    !VALID_CATEGORIES.includes(category) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date)
   ) {
     $("formMessage").textContent =
       "Please enter valid transaction details.";
@@ -321,6 +453,49 @@ form.addEventListener("submit", (event) => {
   render();
 });
 
+budgetForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  const month = budgetMonthInput.value;
+  const amount = Number(budgetAmountInput.value);
+
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    amount > 1000000000
+  ) {
+    $("budgetMessage").textContent =
+      "Please select a month and enter a valid budget.";
+    return;
+  }
+
+  const previous = { ...budgets };
+  budgets[month] = amount;
+
+  if (!saveBudgets()) {
+    budgets = previous;
+    return;
+  }
+
+  $("budgetMessage").textContent =
+    `Budget saved for ${month}.`;
+
+  // Update the input with the saved limit and refresh the dashboard.
+  budgetAmountInput.value = amount;
+  renderBudget();
+});
+
+budgetMonthInput.addEventListener("change", () => {
+  const month = budgetMonthInput.value;
+
+  budgetAmountInput.value =
+    month && budgets[month] !== undefined ? budgets[month] : "";
+
+  $("budgetMessage").textContent = "";
+  renderBudget();
+});
+
 $("cancelEdit").addEventListener("click", resetForm);
 
 $("addTopButton").addEventListener("click", () => {
@@ -328,11 +503,16 @@ $("addTopButton").addEventListener("click", () => {
     behavior: "smooth",
     block: "start"
   });
+
   amountInput.focus({ preventScroll: true });
 });
 
 searchInput.addEventListener("input", renderTransactions);
 filterInput.addEventListener("change", renderTransactions);
 
-dateInput.value = today();
+// Initialize the selected month and existing saved budget.
+budgetMonthInput.value = currentMonth();
+budgetAmountInput.value = budgets[currentMonth()] ?? "";
+dateInput.value = localDateString();
+
 render();
