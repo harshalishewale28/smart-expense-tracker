@@ -4,112 +4,131 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <meta
-    name="description"
-    content="SpendWise is a responsive personal finance dashboard to track income, manage expenses, and understand spending habits."
-  >
-
   <meta name="theme-color" content="#151a36">
+  <meta name="description" content="SpendWise — manage your income, expenses and monthly budgets in one place.">
 
   <title>SpendWise | Smart Expense Tracker</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  >
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
-
 <body>
-  <!-- Navigation -->
   <header class="topbar">
-    <a class="brand" href="#" aria-label="SpendWise home">
-      ✦ SpendWise<span>.</span>
-    </a>
-
-    <span class="tagline">Personal Finance Dashboard</span>
+    <a class="brand" href="#" aria-label="SpendWise home">✦ SpendWise<span>.</span></a>
+    <span class="tagline">PERSONAL FINANCE DASHBOARD</span>
   </header>
 
   <main class="container">
-
-    <!-- Welcome section -->
     <section class="welcome">
       <div>
         <p class="eyebrow">YOUR MONEY, YOUR CONTROL</p>
-
-        <h1>Welcome to your finances 👋</h1>
-
-        <p class="muted">
-          Every rupee counts. Let's make yours work smarter.
-        </p>
+        <h1>Welcome to your finances <span class="wave">✦</span></h1>
+        <p class="muted">Track your money. Plan your spending. Reach your goals.</p>
       </div>
-
-      <button
-        id="addTopButton"
-        class="primary"
-        type="button"
-      >
-        + Add transaction
-      </button>
+      <button id="addTopButton" class="primary" type="button">＋ Add transaction</button>
     </section>
 
     <!-- Financial summary -->
-    <section
-      class="summary-grid"
-      aria-label="Financial summary"
-    >
-      <article class="summary-card">
-        <p>✦ Total Balance</p>
-
+    <section class="summary-grid" aria-label="Financial summary">
+      <article class="summary-card balance-card">
+        <div class="card-top"><span>Total balance</span><span class="card-icon">₹</span></div>
         <h2 id="balance">₹0.00</h2>
-
-        <span>Your income minus expenses</span>
+        <p>Income minus expenses</p>
       </article>
 
       <article class="summary-card income-card">
-        <p>↗ Total Income</p>
-
+        <div class="card-top"><span>Total income</span><span class="card-icon">↗</span></div>
         <h2 id="income">₹0.00</h2>
-
-        <span>Money received</span>
+        <p>Money received</p>
       </article>
 
       <article class="summary-card expense-card">
-        <p>↘ Total Expenses</p>
-
+        <div class="card-top"><span>Total expenses</span><span class="card-icon">↘</span></div>
         <h2 id="expenses">₹0.00</h2>
-
-        <span>Money spent</span>
+        <p>Money spent</p>
       </article>
     </section>
 
-    <!-- Add transaction form -->
-    <section
-      class="panel"
-      id="formPanel"
-      aria-labelledby="formTitle"
-    >
+    <!-- Monthly budget -->
+    <section class="panel budget-panel" aria-labelledby="budgetHeading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">PLAN SMARTER</p>
+          <h2 id="budgetHeading">Monthly budget</h2>
+          <p class="muted small-text">Set a spending limit and keep your expenses on track.</p>
+        </div>
+        <span class="budget-icon" aria-hidden="true">◈</span>
+      </div>
+
+      <form id="budgetForm" class="budget-form">
+        <label for="budgetMonth">
+          Select month
+          <input type="month" id="budgetMonth" required>
+        </label>
+
+        <label for="budgetAmount">
+          Monthly limit (₹)
+          <input type="number" id="budgetAmount" min="0.01" max="1000000000"
+            step="0.01" placeholder="e.g. 15000" required>
+        </label>
+
+        <button class="primary" type="submit">Save budget</button>
+      </form>
+
+      <p id="budgetMessage" class="message" role="status" aria-live="polite"></p>
+
+      <div class="budget-overview">
+        <div>
+          <p class="muted small-text">Spent this month</p>
+          <h3 id="budgetSpent">₹0.00</h3>
+        </div>
+        <div class="budget-remaining">
+          <p class="muted small-text" id="remainingLabel">Budget remaining</p>
+          <h3 id="budgetRemaining">₹0.00</h3>
+        </div>
+      </div>
+
+      <div class="progress-meta">
+        <span id="budgetPercent">Set a budget to get started</span>
+        <span id="budgetLimitLabel">Limit: —</span>
+      </div>
+
+      <div
+        id="budgetProgress"
+        class="progress-track"
+        role="progressbar"
+        aria-label="Monthly budget used"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div id="budgetProgressFill" class="progress-fill"></div>
+      </div>
+
+      <p id="budgetTip" class="budget-tip">
+        Tip: Create a monthly budget to start tracking your spending.
+      </p>
+    </section>
+
+    <!-- Add or edit transaction -->
+    <section class="panel" id="formPanel" aria-labelledby="formTitle">
       <div class="section-heading">
         <div>
           <p class="eyebrow">RECORD YOUR MONEY</p>
-
           <h2 id="formTitle">Add a transaction</h2>
         </div>
+        <span class="section-icon" aria-hidden="true">＋</span>
       </div>
 
       <form id="transactionForm">
         <div class="form-grid">
-
           <label for="type">
             Transaction type
-
-            <select id="type" name="type" required>
+            <select id="type" required>
               <option value="expense">Expense</option>
               <option value="income">Income</option>
             </select>
@@ -117,23 +136,13 @@
 
           <label for="amount">
             Amount (₹)
-
-            <input
-              id="amount"
-              name="amount"
-              type="number"
-              min="0.01"
-              max="1000000000"
-              step="0.01"
-              placeholder="e.g. 500"
-              required
-            >
+            <input id="amount" type="number" min="0.01" max="1000000000"
+              step="0.01" placeholder="e.g. 500" required>
           </label>
 
           <label for="category">
             Category
-
-            <select id="category" name="category" required>
+            <select id="category" required>
               <option value="Food">🍔 Food</option>
               <option value="Transport">🚗 Transport</option>
               <option value="Shopping">🛍️ Shopping</option>
@@ -148,141 +157,72 @@
 
           <label for="date">
             Transaction date
-
-            <input
-              id="date"
-              name="date"
-              type="date"
-              required
-            >
+            <input id="date" type="date" required>
           </label>
 
           <label for="description" class="full-width">
             Description
-
-            <input
-              id="description"
-              name="description"
-              type="text"
-              maxlength="100"
-              placeholder="e.g. Lunch with friends"
-              required
-            >
+            <input id="description" type="text" maxlength="100"
+              placeholder="e.g. Lunch with friends" required>
           </label>
-
         </div>
 
         <div class="form-actions">
-          <button
-            class="primary"
-            id="submitButton"
-            type="submit"
-          >
-            Save transaction
-          </button>
-
-          <button
-            class="secondary"
-            id="cancelEdit"
-            type="button"
-            hidden
-          >
-            Cancel edit
-          </button>
+          <button class="primary" id="submitButton" type="submit">Save transaction</button>
+          <button class="secondary" id="cancelEdit" type="button" hidden>Cancel edit</button>
         </div>
 
-        <p
-          id="formMessage"
-          class="message"
-          role="status"
-          aria-live="polite"
-        ></p>
+        <p id="formMessage" class="message" role="status" aria-live="polite"></p>
       </form>
     </section>
 
-    <!-- Transaction history -->
-    <section
-      class="panel"
-      aria-labelledby="transactionsHeading"
-    >
+    <!-- Transactions -->
+    <section class="panel" aria-labelledby="transactionsHeading">
       <div class="section-heading">
         <div>
           <p class="eyebrow">YOUR FINANCIAL ACTIVITY</p>
-
-          <h2 id="transactionsHeading">Recent transactions</h2>
+          <h2 id="transactionsHeading">Transactions</h2>
         </div>
-
-        <span id="transactionCount" class="count">
-          0 records
-        </span>
+        <span id="transactionCount" class="count">0 records</span>
       </div>
 
       <div class="toolbar">
-        <input
-          id="search"
-          type="search"
-          placeholder="🔍 Search transactions..."
-          aria-label="Search by description, category or date"
-        >
+        <input id="search" type="search"
+          placeholder="Search transactions..." aria-label="Search transactions">
 
-        <select
-          id="filter"
-          aria-label="Filter transactions"
-        >
+        <select id="filter" aria-label="Filter transactions">
           <option value="all">All transactions</option>
           <option value="income">Income only</option>
           <option value="expense">Expenses only</option>
         </select>
       </div>
 
-      <div
-        id="transactionList"
-        class="transaction-list"
-        aria-live="polite"
-      ></div>
+      <div id="transactionList" class="transaction-list"></div>
 
       <p id="emptyMessage" class="empty" hidden>
-        No transactions found.
-
-        Add your first transaction to get started!
+        No transactions found. Add your first transaction to get started!
       </p>
     </section>
 
-    <!-- Spending insights -->
-    <section
-      class="panel"
-      aria-labelledby="insightsHeading"
-    >
+    <!-- Category insights -->
+    <section class="panel" aria-labelledby="insightsHeading">
       <div class="section-heading">
         <div>
           <p class="eyebrow">UNDERSTAND YOUR MONEY</p>
-
-          <h2 id="insightsHeading">Spending insights</h2>
+          <h2 id="insightsHeading">Spending by category</h2>
         </div>
+        <span class="section-icon" aria-hidden="true">◉</span>
       </div>
 
-      <p class="muted">
-        Discover which categories account for your expenses.
-      </p>
-
-      <div
-        id="categoryBreakdown"
-        class="category-list"
-        aria-live="polite"
-      ></div>
+      <p class="muted small-text">See how your expenses are distributed across categories.</p>
+      <div id="categoryBreakdown" class="category-list"></div>
     </section>
 
-    <!-- Footer -->
     <footer>
-      <p>✦ SpendWise</p>
-
-      <p>
-        Built with HTML, CSS and JavaScript
-      </p>
-
+      <p class="footer-brand">✦ SpendWise.</p>
+      <p>Built with HTML, CSS and JavaScript</p>
       <p>Track smarter. Spend better. Save more.</p>
     </footer>
-
   </main>
 </body>
 </html>
